@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Magazzino CRI San Donato</title>
+<meta name="theme-color" content="#1c1a17">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icona-192.png">
+<link rel="apple-touch-icon" href="icona-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Magazzino CRI">
+<script src="config.js"></script>
+<script src="icone.js"></script>
+<style>
+  :root{
+    --rosso:#E2001A; --rosso-scuro:#A30000; --inchiostro:#1c1a17; --carta:#f6f4f0;
+    --pannello:#ffffff; --muto:#726f6a; --bordo:#e4e0d8; --verde:#1f8a4c; --verde-bg:#e8f5ec;
+    --ambra:#b86e00; --ambra-bg:#fdf1dc; --raggio:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--carta);color:var(--inchiostro);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px}
+  button{font:inherit;color:inherit;cursor:pointer}
+  input,select,textarea{font:inherit}
+  .app{max-width:560px;margin:0 auto;min-height:100vh;padding-bottom:110px}
+
+  header.top{background:var(--inchiostro);color:#fff;padding:14px 16px 16px;position:sticky;top:0;z-index:5}
+  .riga-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .marchio{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+  .croce{width:18px;height:18px;position:relative;flex:none}
+  .croce:before,.croce:after{content:"";position:absolute;background:var(--rosso)}
+  .croce:before{width:18px;height:6px;top:6px;left:0}
+  .croce:after{width:6px;height:18px;left:6px;top:0}
+  .chi{background:rgba(255,255,255,.12);border:0;border-radius:20px;padding:6px 12px;color:#fff;font-size:14px}
+  .stato{margin-top:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;background:rgba(255,255,255,.1)}
+  .pall{width:8px;height:8px;border-radius:50%;background:#5bd28b}
+  .pall.off{background:#f0a23a}
+  .pill.attesa{background:var(--ambra);color:#fff;border:0}
+
+  .sez{padding:16px}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muto);margin:6px 0 12px}
+  .card{background:var(--pannello);border:1px solid var(--bordo);border-radius:var(--raggio);padding:16px}
+  .muto{color:var(--muto)}
+  .piccolo{font-size:13px}
+
+  .btn{display:block;width:100%;border:0;border-radius:12px;padding:16px;font-weight:700;font-size:17px;background:var(--inchiostro);color:#fff}
+  .btn.rosso{background:var(--rosso)}
+  .btn.verde{background:var(--verde)}
+  .btn.chiaro{background:#fff;color:var(--inchiostro);border:2px solid var(--bordo)}
+  .btn:disabled{opacity:.45}
+  .btn + .btn{margin-top:10px}
+
+  .grande-scelta{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .scelta{border:2px solid var(--bordo);background:#fff;border-radius:16px;padding:20px 12px;text-align:center;font-weight:700;font-size:18px}
+  .scelta small{display:block;font-weight:500;font-size:13px;color:var(--muto);margin-top:4px}
+  .scelta.ing{border-color:var(--verde);color:var(--verde)}
+  .scelta.usc{border-color:var(--rosso);color:var(--rosso)}
+
+  .lista-opz{display:flex;flex-direction:column;gap:8px}
+  .opz{display:flex;align-items:center;justify-content:space-between;text-align:left;width:100%;background:#fff;border:2px solid var(--bordo);border-radius:12px;padding:14px 16px;font-size:16px}
+  .opz.sel{border-color:var(--inchiostro);background:#f1efea;font-weight:700}
+
+  label.etich{display:block;font-size:13px;font-weight:600;color:var(--muto);margin:16px 0 6px}
+  .campo{width:100%;padding:13px 14px;border:2px solid var(--bordo);border-radius:10px;background:#fff;font-size:16px}
+  .campo:focus{outline:none;border-color:var(--inchiostro)}
+  .pin{font-size:30px;letter-spacing:.4em;text-align:center}
+
+  .testata-carrello{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:700;color:#fff}
+  .tag.ing{background:var(--verde)} .tag.usc{background:var(--rosso)}
+  .totale{font-size:30px;font-weight:800;line-height:1;white-space:nowrap}
+  #nCat{white-space:nowrap}
+  .totale small{font-size:14px;font-weight:600;color:var(--muto)}
+
+  .cerca-wrap{position:sticky;top:96px;z-index:4;background:var(--carta);padding:10px 16px}
+  .cerca{width:100%;padding:13px 14px 13px 42px;border:2px solid var(--bordo);border-radius:12px;font-size:16px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' fill='none' stroke='%23726f6a' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='9' cy='9' r='6'/%3E%3Cpath d='m14 14 4 4'/%3E%3C/svg%3E") no-repeat 13px center}
+  .cerca:focus{outline:none;border-color:var(--inchiostro)}
+
+  .cat-lista{display:flex;flex-direction:column;gap:8px;padding:0 16px}
+  .cat{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:8px 12px}
+  .cat img{width:46px;height:46px;flex:none;object-fit:contain}
+  .cat .nome{flex:1;font-size:15px;line-height:1.25}
+  .cat .kg{flex:none;font-weight:800;font-size:15px;background:var(--verde-bg);color:var(--verde);padding:5px 10px;border-radius:20px}
+  .cat.usata{border-color:#b9dcc6}
+  .sep{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muto);margin:10px 4px 2px}
+  .vuoto{text-align:center;color:var(--muto);padding:24px 10px;font-size:14px}
+
+  .barra-fondo{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--bordo);padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  .barra-fondo .dentro{max-width:528px;margin:0 auto;display:flex;gap:10px}
+  .barra-fondo .btn{margin:0}
+
+  .velo{position:fixed;inset:0;background:rgba(20,18,15,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+  .foglio{background:#fff;width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+  .foglio-testa{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .foglio-testa img{width:56px;height:56px}
+  .foglio-testa .t{flex:1;font-weight:700;font-size:17px;line-height:1.25}
+  .x{border:0;background:#f1efea;border-radius:50%;width:36px;height:36px;font-size:18px;flex:none}
+  .pesate{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .pesata{display:inline-flex;align-items:center;gap:6px;background:#f1efea;border-radius:20px;padding:6px 6px 6px 12px;font-weight:700}
+  .pesata button{border:0;background:#fff;border-radius:50%;width:26px;height:26px;font-size:14px;color:var(--rosso)}
+  .ins-kg{display:flex;gap:10px;align-items:stretch}
+  .ins-kg input{flex:1;font-size:28px;font-weight:800;text-align:center;padding:12px;border:2px solid var(--inchiostro);border-radius:12px;min-width:0}
+  .ins-kg .unit{align-self:center;font-weight:800;color:var(--muto)}
+  .ins-kg button{flex:none;width:auto;padding:0 22px}
+  .avviso{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600}
+  .avviso.ambra{background:var(--ambra-bg);color:var(--ambra)}
+  .avviso.verde{background:var(--verde-bg);color:var(--verde)}
+  .avviso.rosso{background:#fde8ea;color:var(--rosso-scuro)}
+
+  .riep-riga{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bordo)}
+  .riep-riga:last-child{border-bottom:0}
+  .riep-riga img{width:36px;height:36px}
+  .riep-riga .n{flex:1;font-size:14px}
+  .riep-riga .d{display:block;color:var(--muto);font-size:12px}
+  .riep-riga .k{font-weight:800}
+
+  .esito{text-align:center;padding:40px 16px}
+  .esito .icona{font-size:64px;line-height:1}
+  .esito h3{font-size:22px;margin:14px 0 6px}
+
+  .dialogo{position:fixed;inset:0;background:rgba(20,18,15,.5);z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}
+  .dialogo .box{background:#fff;border-radius:16px;padding:20px;max-width:380px;width:100%}
+  .dialogo p{margin:0 0 16px;line-height:1.45}
+  .dialogo .azioni{display:flex;gap:10px}
+  .dialogo .azioni .btn{margin:0;padding:13px;font-size:15px}
+  .nascosto{display:none !important}
+  .link{background:none;border:0;color:var(--muto);text-decoration:underline;font-size:14px;padding:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="riga-top">
+      <div class="marchio"><span class="croce"></span> Magazzino CRI</div>
+      <button class="chi nascosto" id="btnChi" onclick="cambiaNome()"></button>
+    </div>
+    <div class="stato">
+      <span class="pill"><span class="pall" id="pallRete"></span><span id="txtRete">Online</span></span>
+      <button class="pill attesa nascosto" id="pillCoda" onclick="inviaCoda(true)"></button>
+    </div>
+  </header>
+  <main id="vista"></main>
+</div>
+<div id="strato"></div>
+
+<script>
+/* ================= Stato e memoria locale ================= */
+var K = { PIN:'mag_pin', CFG:'mag_config', NOME:'mag_nome', CARRELLO:'mag_carrello', CODA:'mag_coda' };
+var stato = { cfg:null, carrello:null, cerca:'', invioInCorso:false };
+
+function leggi(k, def){ try{ var v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); }catch(e){ return def; } }
+function scrivi(k, v){ try{ if(v === null || v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function kgTxt(n){ return (Math.round(n*100)/100).toLocaleString('it-IT', {maximumFractionDigits:2}); }
+function oggi(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dataTxt(s){ var p = String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
+function nuovoId(){ return 'C' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
+function icona(id){ return (window.ICONE && (ICONE[id] || ICONE.fuori_lista)) || ''; }
+function somma(arr){ return (arr||[]).reduce(function(s,n){ return s + Number(n||0); }, 0); }
+
+/* ================= Chiamate al server ================= */
+/* La pagina parla con lo script Google (config.js → API_URL) senza nessun login. */
+function chiama(dati){
+  if(!window.CONFIG || !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(CONFIG.API_URL || '')){
+    return Promise.reject(new Error('Indirizzo dello script mancante in config.js'));
+  }
+  var ctrl = ('AbortController' in window) ? new AbortController() : null;
+  var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 25000);
+  return fetch(CONFIG.API_URL, {
+    method:'POST', redirect:'follow', credentials:'omit', cache:'no-store',
+    headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+    body: JSON.stringify(dati), signal: ctrl ? ctrl.signal : undefined
+  }).then(function(r){
+    clearTimeout(timer);
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }, function(e){ clearTimeout(timer); throw e; });
+}
+function server(nome){
+  var a = Array.prototype.slice.call(arguments, 1);
+  if(nome === 'getConfig') return chiama({ azione:'config', pin:a[0] });
+  if(nome === 'inviaCarrello') return chiama({ azione:'invia', pin:a[0], carrello:a[1] });
+  if(nome === 'aggiungiVolontario') return chiama({ azione:'volontario', pin:a[0], nome:a[1] });
+  return Promise.reject(new Error('azione sconosciuta'));
+}
+
+/* ================= Rete e coda di invio ================= */
+function aggiornaStato(){
+  var on = navigator.onLine;
+  document.getElementById('pallRete').classList.toggle('off', !on);
+  document.getElementById('txtRete').textContent = on ? 'Online' : 'Senza rete — i dati restano sul telefono';
+  var coda = leggi(K.CODA, []);
+  var pill = document.getElementById('pillCoda');
+  if(coda.length){
+    pill.classList.remove('nascosto');
+    pill.textContent = stato.invioInCorso ? 'Invio in corso…' : (coda.length === 1 ? '1 carrello da inviare ↻' : coda.length + ' carrelli da inviare ↻');
+  } else pill.classList.add('nascosto');
+  var chi = document.getElementById('btnChi');
+  var nome = leggi(K.NOME, null);
+  if(nome && stato.cfg){ chi.textContent = '👤 ' + nome; chi.classList.remove('nascosto'); } else chi.classList.add('nascosto');
+}
+
+function inviaCoda(manuale){
+  if(stato.invioInCorso) return Promise.resolve();
+  var coda = leggi(K.CODA, []);
+  if(!coda.length){ aggiornaStato(); return Promise.resolve(); }
+  stato.invioInCorso = true; aggiornaStato();
+  var pin = leggi(K.PIN, '');
+  var c = coda[0];
+  return server('inviaCarrello', pin, c).then(function(res){
+    stato.invioInCorso = false;
+    if(res && res.ok){
+      var resto = leggi(K.CODA, []).filter(function(x){ return x.id !== c.id; });
+      scrivi(K.CODA, resto);
+      aggiornaStato();
+      if(document.getElementById('esitoSalvato') && !resto.length) mostraEsito(true);
+      return inviaCoda(false);
+    }
+    if(res && res.errore === 'PIN'){
+      aggiornaStato();
+      chiediPin('Il PIN è cambiato. Inserisci il nuovo PIN per inviare i carrelli salvati.');
+      return;
+    }
+    if(res && res.errore === 'BLOCCATO'){
+      aggiornaStato();
+      if(manuale) dialogo(esc(res.messaggio) + ' Il carrello resta salvato e partirà da solo.', ['Ok']);
+      return;
+    }
+    aggiornaStato();
+    if(manuale) dialogo('Invio non riuscito: ' + esc((res && res.messaggio) || 'errore sconosciuto') + '. Il carrello resta salvato.', ['Ok']);
+  }).catch(function(){
+    stato.invioInCorso = false; aggiornaStato();
+    if(manuale) dialogo('Nessuna connessione. Il carrello resta salvato sul telefono e partirà da solo appena torna la rete.', ['Ok']);
+  });
+}
+
+window.addEventListener('online', function(){ aggiornaStato(); inviaCoda(false); });
+window.addEventListener('offline', aggiornaStato);
+setInterval(function(){ if(navigator.onLine) inviaCoda(false); }, 30000);
+
+/* ================= Dialoghi ================= */
+function dialogo(testo, bottoni, cb){
+  var s = document.getElementById('strato');
+  var d = document.createElement('div');
+  d.className = 'dialogo';
+  d.innerHTML = '<div class="box"><p>'+testo+'</p><div class="azioni">' +
+    bottoni.map(function(b,i){ return '<button class="btn '+(i===bottoni.length-1?'':'chiaro')+'" data-i="'+i+'">'+esc(b)+'</button>'; }).join('') +
+    '</div></div>';
+  d.addEventListener('click', function(e){
+    var i = e.target.getAttribute('data-i');
+    if(i === null) return;
+    d.remove(); if(cb) cb(Number(i));
+  });
+  s.appendChild(d);
+}
+
+/* ================= Avvio ================= */
+function avvia(){
+  aggiornaStato();
+  var pin = leggi(K.PIN, null);
+  stato.cfg = leggi(K.CFG, null);
+  stato.carrello = leggi(K.CARRELLO, null);
+  if(!pin){ chiediPin(); return; }
+  if(stato.cfg) dopoConfig();
+  else vista('<div class="sez"><div class="card muto">Caricamento…</div></div>');
+  aggiornaConfig(pin, !stato.cfg);
+}
+
+function aggiornaConfig(pin, bloccante){
+  return server('getConfig', pin).then(function(res){
+    if(res && res.ok){
+      scrivi(K.PIN, pin); scrivi(K.CFG, res); stato.cfg = res;
+      if(bloccante) dopoConfig(); else aggiornaStato();
+      inviaCoda(false);
+      return true;
+    }
+    if(res && res.errore === 'BLOCCATO'){
+      if(bloccante && !stato.cfg) vista('<div class="sez"><div class="card"><b>App bloccata per 15 minuti.</b><p class="muto">Troppi PIN sbagliati. Riprova più tardi.</p><button class="btn" onclick="avvia()">Riprova</button></div></div>');
+      return false;
+    }
+    scrivi(K.PIN, null);
+    chiediPin(bloccante ? 'PIN non corretto, riprova.' : 'Il PIN è cambiato. Inserisci il nuovo PIN (è scritto sulla lavagna).');
+    return false;
+  }).catch(function(){
+    if(bloccante && !stato.cfg){
+      vista('<div class="sez"><div class="card"><b>Serve la connessione per il primo avvio.</b><p class="muto">Apri l\'app dove c\'è rete (in sede o all\'ingresso), poi funziona anche senza.</p><button class="btn" onclick="avvia()">Riprova</button></div></div>');
+    }
+    return false;
+  });
+}
+
+function dopoConfig(){
+  aggiornaStato();
+  if(!leggi(K.NOME, null)) return scegliNome();
+  if(stato.carrello) return mostraCarrello();
+  home();
+}
+
+function vista(html){ document.getElementById('vista').innerHTML = html; window.scrollTo(0,0); }
+
+/* ================= PIN ================= */
+function chiediPin(msg){
+  vista('<div class="sez"><h2>Accesso</h2><div class="card">' +
+    '<p style="margin-top:0">Inserisci il <b>PIN del magazzino</b>.<br><span class="muto piccolo">È scritto sulla lavagna. Il telefono lo ricorderà.</span></p>' +
+    (msg ? '<div class="avviso rosso">'+esc(msg)+'</div>' : '') +
+    '<input id="inPin" class="campo pin" type="password" inputmode="numeric" autocomplete="off" maxlength="12" style="margin-top:14px">' +
+    '<div style="height:12px"></div><button class="btn rosso" id="btnPin" onclick="confermaPin()">Entra</button></div></div>');
+  var i = document.getElementById('inPin');
+  i.focus();
+  i.addEventListener('keydown', function(e){ if(e.key==='Enter') confermaPin(); });
+}
+function confermaPin(){
+  var v = document.getElementById('inPin').value.trim();
+  if(!v) return;
+  var b = document.getElementById('btnPin'); b.disabled = true; b.textContent = 'Verifico…';
+  server('getConfig', v).then(function(res){
+    if(res && res.ok){
+      scrivi(K.PIN, v); scrivi(K.CFG, res); stato.cfg = res;
+      dopoConfig(); inviaCoda(false);
+    } else chiediPin(res && res.errore === 'BLOCCATO' ? res.messaggio : 'PIN non corretto, riprova.');
+  }).catch(function(){ chiediPin('Nessuna connessione: per verificare il PIN serve la rete.'); });
+}
+
+/* ================= Nome volontario ================= */
+/* "mario  ROSSI" → "Mario Rossi" (stessa regola dello script) */
+function nomeProprio(s){
+  var t = String(s||'').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s'’.\-]/g, ' ').replace(/^[^A-Za-zÀ-ÖØ-öø-ÿ]+/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  return t.toLowerCase().replace(/(^|[\s'’\-])(\S)/g, function(m, a, b){ return a + b.toUpperCase(); });
+}
+function chiaveNome(s){ return norm(s).replace(/[^a-z]/g, ''); }
+
+/* Usa un nome scritto a mano: se esiste già prende quello, altrimenti lo aggiunge (anche al foglio). */
+function registraNome(scritto){
+  var n = nomeProprio(scritto);
+  if(chiaveNome(n).length < 2) return '';
+  var lista = (stato.cfg.volontari || []);
+  for(var i=0;i<lista.length;i++) if(chiaveNome(lista[i]) === chiaveNome(n)) return lista[i];
+  lista.push(n); lista.sort(function(a,b){ return a.localeCompare(b,'it'); });
+  stato.cfg.volontari = lista; scrivi(K.CFG, stato.cfg);
+  // Se c'è rete lo aggiunge subito al foglio; altrimenti verrà aggiunto con il primo carrello inviato.
+  server('aggiungiVolontario', leggi(K.PIN,''), n).then(function(res){
+    if(res && res.ok && res.volontari){ stato.cfg.volontari = res.volontari; scrivi(K.CFG, stato.cfg); }
+  }).catch(function(){});
+  return n;
+}
+
+function scegliNome(){
+  var nomi = (stato.cfg && stato.cfg.volontari) || [];
+  var attuale = leggi(K.NOME, null);
+  vista('<div class="sez"><h2>Chi sei?</h2><div class="lista-opz">' +
+    nomi.map(function(n){ return '<button class="opz'+(n===attuale?' sel':'')+'" data-n="'+esc(n)+'">'+esc(n)+'<span>›</span></button>'; }).join('') +
+    '<button class="opz" id="btnNuovoNome" style="border-style:dashed;color:var(--muto)">➕ Non trovo il mio nome<span></span></button>' +
+    '</div>' +
+    '<div id="boxNuovoNome" class="card nascosto" style="margin-top:12px">' +
+      '<label class="etich" style="margin-top:0">Nome e cognome</label>' +
+      '<input id="inNuovoNome" class="campo" autocomplete="off" autocapitalize="words" placeholder="Es. Mario Rossi">' +
+      '<div id="errNome"></div><div style="height:12px"></div>' +
+      '<button class="btn" id="btnSalvaNome">Conferma</button>' +
+      '<p class="muto piccolo" style="margin-bottom:0">Il nome verrà aggiunto alla lista dei volontari.</p>' +
+    '</div></div>');
+  document.querySelectorAll('.opz[data-n]').forEach(function(b){
+    b.onclick = function(){ scrivi(K.NOME, b.getAttribute('data-n')); dopoConfig(); };
+  });
+  document.getElementById('btnNuovoNome').onclick = function(){
+    document.getElementById('boxNuovoNome').classList.remove('nascosto');
+    var i = document.getElementById('inNuovoNome'); i.focus();
+    i.scrollIntoView({ block:'center' });
+  };
+  var salva = function(){
+    var v = document.getElementById('inNuovoNome').value;
+    if(v.trim().split(/\s+/).length < 2){ document.getElementById('errNome').innerHTML = '<div class="avviso rosso">Scrivi nome e cognome.</div>'; return; }
+    var n = registraNome(v);
+    if(!n){ document.getElementById('errNome').innerHTML = '<div class="avviso rosso">Nome non valido.</div>'; return; }
+    scrivi(K.NOME, n); dopoConfig();
+  };
+  document.getElementById('btnSalvaNome').onclick = salva;
+  document.getElementById('inNuovoNome').addEventListener('keydown', function(e){ if(e.key === 'Enter') salva(); });
+  document.getElementById('inNuovoNome').addEventListener('input', function(){ document.getElementById('errNome').innerHTML = ''; });
+}
+function cambiaNome(){
+  if(stato.carrello){ dialogo('Hai un carrello aperto. Puoi cambiare l\'operatore dal carrello stesso.', ['Ok']); return; }
+  scegliNome();
+}
+
+/* ================= Home ================= */
+function home(){
+  var coda = leggi(K.CODA, []);
+  vista('<div class="sez"><h2>Nuovo carrello</h2>' +
+    '<div class="grande-scelta">' +
+      '<button class="scelta ing" onclick="nuovoCarrello(\'Ingresso\')">⬇ INGRESSO<small>merce in arrivo</small></button>' +
+      '<button class="scelta usc" onclick="nuovoCarrello(\'Uscita\')">⬆ USCITA<small>es. a Caritas</small></button>' +
+    '</div>' +
+    (coda.length ? '<div class="avviso ambra" style="margin-top:16px">'+coda.length+' carrello/i salvati sul telefono, in attesa di rete. Partono da soli.</div>' : '') +
+    '<p class="muto piccolo" style="margin-top:24px">L\'app funziona anche senza rete: i carrelli partono da soli quando torna la connessione. Consiglio: aggiungila alla schermata Home (menu del browser → <i>Aggiungi a schermata Home</i>).</p>' +
+    '<div style="text-align:center"><button class="link" onclick="aggiornaConfig(leggi(K.PIN,\'\'), false).then(function(ok){ if(ok) dialogo(\'Liste aggiornate.\', [\'Ok\']); })">Aggiorna liste dal foglio</button></div>' +
+  '</div>');
+}
+
+/* ================= Apertura carrello ================= */
+function nuovoCarrello(tipo){
+  var nome = leggi(K.NOME, '');
+  var bozza = { id:nuovoId(), tipo:tipo, luogo:'', altro:'', data:oggi(), operatore:nome, note:'', righe:{}, ordine:[] };
+  impostaCarrello(bozza);
+}
+
+function impostaCarrello(c){
+  var lista = c.tipo === 'Uscita' ? (stato.cfg.destinazioni||[]) : (stato.cfg.provenienze||[]);
+  var titolo = c.tipo === 'Uscita' ? 'Destinazione' : 'Provenienza';
+  var nomi = stato.cfg.volontari || [];
+  if(c.operatore && nomi.indexOf(c.operatore) < 0) nomi = [c.operatore].concat(nomi);
+  vista('<div class="sez"><h2><span class="tag '+(c.tipo==='Uscita'?'usc':'ing')+'">'+c.tipo.toUpperCase()+'</span> &nbsp;Apri carrello</h2><div class="card">' +
+    '<label class="etich" style="margin-top:0">'+titolo+'</label><div class="lista-opz" id="lstLuogo">' +
+    lista.map(function(l){ return '<button class="opz'+(c.luogo===l?' sel':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join('') +
+    '</div>' +
+    '<div id="boxAltro" class="'+(/^altro$/i.test(c.luogo)?'':'nascosto')+'"><label class="etich">Specifica</label><input id="inAltro" class="campo" value="'+esc(c.altro)+'" placeholder="Es. donazione scuola Rodari"></div>' +
+    '<label class="etich">Data</label><input id="inData" class="campo" type="date" value="'+esc(c.data)+'">' +
+    '<label class="etich">Operatore</label><select id="inOp" class="campo">' +
+      nomi.map(function(n){ return '<option'+(n===c.operatore?' selected':'')+'>'+esc(n)+'</option>'; }).join('') +
+      '<option value="__altro">➕ Altro volontario (scrivi il nome)</option></select>' +
+    '<div id="boxOpAltro" class="nascosto" style="margin-top:8px"><input id="inOpAltro" class="campo" autocomplete="off" autocapitalize="words" placeholder="Nome e cognome, es. Mario Rossi"></div>' +
+    '<div id="errApri"></div>' +
+    '<div style="height:16px"></div><button class="btn '+(c.tipo==='Uscita'?'rosso':'verde')+'" id="btnApri">Apri carrello</button>' +
+    '<button class="btn chiaro" id="btnIndietro">Indietro</button>' +
+  '</div></div>');
+  document.querySelectorAll('#lstLuogo .opz').forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll('#lstLuogo .opz').forEach(function(x){ x.classList.remove('sel'); });
+      b.classList.add('sel'); c.luogo = b.getAttribute('data-l');
+      document.getElementById('boxAltro').classList.toggle('nascosto', !/^altro$/i.test(c.luogo));
+      document.getElementById('errApri').innerHTML = '';
+    };
+  });
+  document.getElementById('inOp').onchange = function(){
+    var altro = this.value === '__altro';
+    document.getElementById('boxOpAltro').classList.toggle('nascosto', !altro);
+    if(altro) document.getElementById('inOpAltro').focus();
+  };
+  document.getElementById('btnIndietro').onclick = function(){ stato.carrello ? mostraCarrello() : home(); };
+  document.getElementById('btnApri').onclick = function(){
+    c.altro = document.getElementById('inAltro').value.trim();
+    c.data = document.getElementById('inData').value || oggi();
+    var op = document.getElementById('inOp').value;
+    var err = '';
+    if(op === '__altro'){
+      var scritto = document.getElementById('inOpAltro').value;
+      if(scritto.trim().split(/\s+/).length < 2) err = 'Scrivi nome e cognome del volontario.';
+      else { op = registraNome(scritto); if(!op) err = 'Nome del volontario non valido.'; }
+    }
+    if(!err) c.operatore = op;
+    if(err){} else if(!c.luogo) err = 'Scegli la ' + titolo.toLowerCase() + '.';
+    else if(/^altro$/i.test(c.luogo) && !c.altro) err = 'Scrivi da dove arriva o dove va la merce.';
+    if(err){ document.getElementById('errApri').innerHTML = '<div class="avviso rosso">'+esc(err)+'</div>'; return; }
+    stato.carrello = c; scrivi(K.CARRELLO, c); stato.cerca = '';
+    mostraCarrello();
+  };
+}
+
+function luogoTxt(c){ return /^altro$/i.test(c.luogo) && c.altro ? c.altro : c.luogo; }
+function totaleCarrello(c){ var t = 0; Object.keys(c.righe).forEach(function(k){ t += somma(c.righe[k]); }); return t; }
+function salvaCarrello(){ scrivi(K.CARRELLO, stato.carrello); }
+
+/* ================= Carrello ================= */
+function mostraCarrello(){
+  var c = stato.carrello;
+  var usc = c.tipo === 'Uscita';
+  vista(
+    '<div class="sez" style="padding-bottom:4px"><div class="card"><div class="testata-carrello">' +
+      '<div><span class="tag '+(usc?'usc':'ing')+'">'+c.tipo.toUpperCase()+'</span>' +
+      '<div style="font-weight:700;margin-top:6px">'+esc(luogoTxt(c))+'</div>' +
+      '<div class="muto piccolo">'+dataTxt(c.data)+' · '+esc(c.operatore)+' · <button class="link" style="padding:0" onclick="impostaCarrello(stato.carrello)">modifica</button></div></div>' +
+      '<div style="text-align:right"><div class="totale" id="totCar">'+kgTxt(totaleCarrello(c))+' <small>kg</small></div>' +
+      '<div class="muto piccolo" id="nCat">'+contaCat(c)+'</div></div>' +
+    '</div></div></div>' +
+    '<div class="cerca-wrap"><input id="inCerca" class="cerca" type="search" placeholder="Cerca: tonno, nutella, ceci…" value="'+esc(stato.cerca)+'" autocomplete="off"></div>' +
+    '<div id="lstCat" class="cat-lista"></div>' +
+    '<div class="barra-fondo"><div class="dentro">' +
+      '<button class="btn chiaro" style="flex:0 0 auto;width:auto;padding:16px 18px" onclick="annullaCarrello()" aria-label="Annulla carrello">✕</button>' +
+      '<button class="btn '+(usc?'rosso':'verde')+'" id="btnChiudi" onclick="riepilogo()">Chiudi carrello</button>' +
+    '</div></div>'
+  );
+  var i = document.getElementById('inCerca');
+  i.addEventListener('input', function(){ stato.cerca = i.value; disegnaCategorie(); });
+  disegnaCategorie();
+}
+
+function contaCat(c){ var n = Object.keys(c.righe).filter(function(k){ return somma(c.righe[k]) > 0; }).length; return n === 1 ? '1 categoria' : n + ' categorie'; }
+
+function disegnaCategorie(){
+  var c = stato.carrello;
+  var cats = stato.cfg.categorie || [];
+  var q = norm(stato.cerca).trim();
+  var parole = q ? q.split(/\s+/) : [];
+  var trovate = cats.filter(function(cat){
+    if(!parole.length) return true;
+    var testo = norm(cat.nome + ' ' + cat.parole + ' ' + cat.gruppo);
+    return parole.every(function(p){ return testo.indexOf(p) >= 0; });
+  });
+  var usate = trovate.filter(function(cat){ return somma(c.righe[cat.id]) > 0; });
+  usate.sort(function(a,b){ return c.ordine.indexOf(b.id) - c.ordine.indexOf(a.id); });
+  var altre = trovate.filter(function(cat){ return !(somma(c.righe[cat.id]) > 0); });
+  var riga = function(cat){
+    var t = somma(c.righe[cat.id]);
+    return '<button class="cat'+(t>0?' usata':'')+'" data-id="'+esc(cat.id)+'"><img src="'+icona(cat.id)+'" alt=""><span class="nome">'+esc(cat.nome)+'</span>' +
+      (t>0 ? '<span class="kg">'+kgTxt(t)+' kg</span>' : '<span class="muto" style="font-size:22px">+</span>') + '</button>';
+  };
+  var html = '';
+  if(usate.length) html += '<div class="sep">Già nel carrello</div>' + usate.map(riga).join('');
+  if(altre.length) html += (usate.length ? '<div class="sep">Altre categorie</div>' : '') + altre.map(riga).join('');
+  if(!trovate.length) html = '<div class="vuoto">Nessuna categoria per "'+esc(stato.cerca)+'".<br>Se non sai dove metterlo usa <b>Fuori lista</b>.' +
+    '<div style="margin-top:12px"><button class="btn chiaro" onclick="apriCategoria(\'fuori_lista\')">📦 Fuori lista</button></div></div>';
+  var el = document.getElementById('lstCat');
+  el.innerHTML = html;
+  el.querySelectorAll('.cat').forEach(function(b){ b.onclick = function(){ apriCategoria(b.getAttribute('data-id')); }; });
+  var tot = document.getElementById('totCar'); if(tot) tot.innerHTML = kgTxt(totaleCarrello(c)) + ' <small>kg</small>';
+  var nc = document.getElementById('nCat'); if(nc) nc.textContent = contaCat(c);
+}
+
+function trovaCat(id){
+  var cats = stato.cfg.categorie || [];
+  for(var i=0;i<cats.length;i++) if(cats[i].id === id) return cats[i];
+  return { id:id, nome:id };
+}
+
+/* ------- foglio di inserimento pesata ------- */
+function apriCategoria(id){
+  var cat = trovaCat(id);
+  var s = document.getElementById('strato');
+  s.innerHTML = '<div class="velo" id="velo"><div class="foglio">' +
+    '<div class="foglio-testa"><img src="'+icona(id)+'" alt=""><div class="t">'+esc(cat.nome)+'</div><button class="x" id="xChiudi" aria-label="Chiudi">✕</button></div>' +
+    '<div id="pesateBox"></div>' +
+    '<div class="ins-kg"><input id="inKg" type="text" inputmode="decimal" placeholder="0,0" autocomplete="off"><span class="unit">kg</span>' +
+    '<button class="btn verde" id="btnAgg">Aggiungi</button></div>' +
+    '<div id="avvKg"></div>' +
+    '<div style="height:10px"></div><button class="btn chiaro" id="btnFatto">Fatto</button>' +
+  '</div></div>';
+  var chiudi = function(){ s.innerHTML = ''; disegnaCategorie(); };
+  document.getElementById('xChiudi').onclick = chiudi;
+  document.getElementById('btnFatto').onclick = chiudi;
+  document.getElementById('velo').addEventListener('click', function(e){ if(e.target.id === 'velo') chiudi(); });
+  var inp = document.getElementById('inKg');
+  var aggiungi = function(conferma){
+    var v = Number(String(inp.value).replace(',', '.').trim());
+    var avv = document.getElementById('avvKg');
+    if(!inp.value.trim() || !isFinite(v) || v <= 0){ avv.innerHTML = '<div class="avviso rosso">Scrivi un peso valido, es. 7,5</div>'; return; }
+    if(v > 40 && !conferma){
+      avv.innerHTML = '<div class="avviso ambra">'+kgTxt(v)+' kg è più della portata della bilancia (40 kg). È corretto?' +
+        '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn chiaro" style="padding:10px;font-size:14px" id="kgNo">Correggo</button><button class="btn" style="padding:10px;font-size:14px;margin:0" id="kgSi">Sì, aggiungi</button></div></div>';
+      document.getElementById('kgNo').onclick = function(){ avv.innerHTML=''; inp.focus(); inp.select(); };
+      document.getElementById('kgSi').onclick = function(){ aggiungi(true); };
+      return;
+    }
+    var c = stato.carrello;
+    v = Math.round(v*100)/100;
+    (c.righe[id] = c.righe[id] || []).push(v);
+    c.ordine = c.ordine.filter(function(x){ return x !== id; }); c.ordine.push(id);
+    salvaCarrello();
+    inp.value = '';
+    avv.innerHTML = '<div class="avviso verde">+ '+kgTxt(v)+' kg aggiunti</div>';
+    disegnaPesate(id);
+    inp.focus();
+  };
+  document.getElementById('btnAgg').onclick = function(){ aggiungi(false); };
+  inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') aggiungi(false); });
+  inp.addEventListener('input', function(){ document.getElementById('avvKg').innerHTML = ''; });
+  disegnaPesate(id);
+  setTimeout(function(){ inp.focus(); }, 60);
+}
+
+function disegnaPesate(id){
+  var p = stato.carrello.righe[id] || [];
+  var box = document.getElementById('pesateBox');
+  if(!p.length){ box.innerHTML = '<p class="muto piccolo" style="margin:4px 0 12px">Nessuna pesata. Scrivi i kg letti sulla bilancia.</p>'; return; }
+  box.innerHTML = '<div class="muto piccolo">Pesate: totale <b style="color:var(--inchiostro)">'+kgTxt(somma(p))+' kg</b></div><div class="pesate">' +
+    p.map(function(v,i){ return '<span class="pesata">'+kgTxt(v)+' kg<button data-i="'+i+'" aria-label="Elimina">✕</button></span>'; }).join('') + '</div>';
+  box.querySelectorAll('button[data-i]').forEach(function(b){
+    b.onclick = function(){
+      var i = Number(b.getAttribute('data-i'));
+      var v = p[i];
+      dialogo('Eliminare la pesata da <b>'+kgTxt(v)+' kg</b>?', ['No', 'Elimina'], function(scelta){
+        if(scelta !== 1) return;
+        p.splice(i,1);
+        if(!p.length) delete stato.carrello.righe[id];
+        salvaCarrello(); disegnaPesate(id);
+        document.getElementById('avvKg').innerHTML = '';
+      });
+    };
+  });
+}
+
+function annullaCarrello(){
+  var c = stato.carrello;
+  var t = totaleCarrello(c);
+  var msg = t > 0 ? 'Annullare il carrello? Le pesate inserite (<b>'+kgTxt(t)+' kg</b>) verranno perse.' : 'Annullare il carrello?';
+  dialogo(msg, ['No', 'Sì, annulla'], function(s){
+    if(s !== 1) return;
+    stato.carrello = null; scrivi(K.CARRELLO, null); home();
+  });
+}
+
+/* ================= Riepilogo e invio ================= */
+function riepilogo(){
+  var c = stato.carrello;
+  var ids = (stato.cfg.categorie||[]).map(function(x){ return x.id; });
+  Object.keys(c.righe).forEach(function(k){ if(ids.indexOf(k) < 0) ids.push(k); });
+  var piene = ids.filter(function(id){ return somma(c.righe[id]) > 0; });
+  if(!piene.length){ dialogo('Il carrello è vuoto: aggiungi almeno una pesata.', ['Ok']); return; }
+  var usc = c.tipo === 'Uscita';
+  vista('<div class="sez"><h2>Riepilogo carrello</h2><div class="card">' +
+    '<span class="tag '+(usc?'usc':'ing')+'">'+c.tipo.toUpperCase()+'</span>' +
+    '<div style="font-weight:700;margin-top:6px">'+esc(luogoTxt(c))+'</div><div class="muto piccolo">'+dataTxt(c.data)+' · '+esc(c.operatore)+'</div>' +
+    '<div style="margin-top:10px">' +
+    piene.map(function(id){
+      var p = c.righe[id];
+      return '<div class="riep-riga"><img src="'+icona(id)+'" alt=""><span class="n">'+esc(trovaCat(id).nome) +
+        (p.length > 1 ? '<span class="d">'+p.map(kgTxt).join(' + ')+'</span>' : '') + '</span><span class="k">'+kgTxt(somma(p))+' kg</span></div>';
+    }).join('') +
+    '</div><div class="riep-riga" style="border-top:2px solid var(--inchiostro);margin-top:4px"><span class="n"><b>TOTALE</b></span><span class="k" style="font-size:20px">'+kgTxt(totaleCarrello(c))+' kg</span></div>' +
+    '<label class="etich">Note (facoltative)</label><textarea id="inNote" class="campo" rows="2" placeholder="Es. compilato da foglio cartaceo">'+esc(c.note)+'</textarea>' +
+  '</div></div>' +
+  '<div class="barra-fondo"><div class="dentro">' +
+    '<button class="btn chiaro" style="flex:1" onclick="salvaNote();mostraCarrello()">Modifica</button>' +
+    '<button class="btn '+(usc?'rosso':'verde')+'" style="flex:2" id="btnInvia" onclick="confermaInvio()">Conferma e invia</button>' +
+  '</div></div>');
+}
+function salvaNote(){ var n = document.getElementById('inNote'); if(n){ stato.carrello.note = n.value.trim(); salvaCarrello(); } }
+
+function confermaInvio(){
+  salvaNote();
+  var c = stato.carrello;
+  var invio = {
+    id:c.id, tipo:c.tipo, luogo:luogoTxt(c), operatore:c.operatore, data:c.data, note:c.note,
+    righe: Object.keys(c.righe).filter(function(k){ return somma(c.righe[k]) > 0; }).map(function(k){ return { cat:k, pesate:c.righe[k] }; })
+  };
+  var coda = leggi(K.CODA, []).filter(function(x){ return x.id !== invio.id; });
+  coda.push(invio); scrivi(K.CODA, coda);
+  stato.carrello = null; scrivi(K.CARRELLO, null);
+  vista('<div class="esito" id="esitoAttesa"><div class="icona">⏳</div><h3>Invio in corso…</h3></div>');
+  aggiornaStato();
+  var fatto = false;
+  inviaCoda(false).then(function(){
+    var ancora = leggi(K.CODA, []).some(function(x){ return x.id === invio.id; });
+    fatto = true; mostraEsito(!ancora);
+  });
+  setTimeout(function(){ if(!fatto) mostraEsito(false); }, 12000);
+}
+
+function mostraEsito(inviato){
+  if(!document.getElementById('esitoAttesa') && !document.getElementById('esitoSalvato')) return;
+  vista(inviato
+    ? '<div class="esito"><div class="icona">✅</div><h3>Carrello registrato</h3><p class="muto">I dati sono nel foglio del magazzino. Grazie!</p><div style="height:16px"></div><button class="btn" onclick="home()">Nuovo carrello</button></div>'
+    : '<div class="esito" id="esitoSalvato"><div class="icona">📱</div><h3>Salvato sul telefono</h3><p class="muto">Non c\'è rete in questo momento. Il carrello partirà da solo appena torna la connessione: puoi chiudere l\'app, ma riaprila quando sei in zona coperta.</p><div style="height:16px"></div><button class="btn" onclick="home()">Ok</button><button class="btn chiaro" onclick="inviaCoda(true)">Riprova ora</button></div>');
+  aggiornaStato();
+}
+
+avvia();
+
+/* Funzionamento senza rete: la pagina resta salvata sul telefono */
+if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+  window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+}
+</script>
+</body>
+</html>
