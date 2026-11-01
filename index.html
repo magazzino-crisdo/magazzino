@@ -160,6 +160,20 @@ function oggi(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMont
 function dataTxt(s){ var p = String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
 function nuovoId(){ return 'C' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function icona(id){ return (window.ICONE && (ICONE[id] || ICONE.fuori_lista)) || ''; }
+/* Unità di misura per categoria (dal foglio): kg pesati, l litri, pz pezzi */
+function unitaDi(id){ var c = trovaCat(id); return (c && c.unita) || 'kg'; }
+function qTxt(n, u){ return kgTxt(n) + ' ' + (u || 'kg'); }
+/* Totali del carrello separati per unità, es. "12,5 kg · 6 l · 4 pz" */
+function totaliPerUnita(c){
+  var t = { kg:0, l:0, pz:0 };
+  Object.keys(c.righe).forEach(function(k){ t[unitaDi(k)] += somma(c.righe[k]); });
+  return t;
+}
+function totaliTxt(c, html){
+  var t = totaliPerUnita(c), parti = [];
+  ['kg','l','pz'].forEach(function(u){ if(t[u] > 0 || (u === 'kg' && !t.l && !t.pz)) parti.push(html ? kgTxt(t[u]) + ' <small>' + u + '</small>' : qTxt(t[u], u)); });
+  return parti.join(html ? '<br>' : ' · ');
+}
 function somma(arr){ return (arr||[]).reduce(function(s,n){ return s + Number(n||0); }, 0); }
 
 /* ================= Chiamate al server ================= */
@@ -238,9 +252,20 @@ function inviaCoda(manuale){
   });
 }
 
-window.addEventListener('online', function(){ aggiornaStato(); inviaCoda(false); });
+/* Invio automatico: quando torna la rete la connessione spesso non è subito pronta,
+   quindi riprova più volte a breve distanza, e poi ogni 15 secondi finché la coda non è vuota. */
+var tentativiRavvicinati = [];
+function riprovaPresto(){
+  tentativiRavvicinati.forEach(clearTimeout);
+  tentativiRavvicinati = [1500, 5000, 10000, 20000].map(function(ms){ return setTimeout(function(){ inviaCoda(false); }, ms); });
+  inviaCoda(false);
+}
+window.addEventListener('online', function(){ aggiornaStato(); riprovaPresto(); });
 window.addEventListener('offline', aggiornaStato);
-setInterval(function(){ if(navigator.onLine) inviaCoda(false); }, 30000);
+document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible'){ aggiornaStato(); riprovaPresto(); } });
+window.addEventListener('focus', function(){ inviaCoda(false); });
+window.addEventListener('pageshow', function(){ inviaCoda(false); });
+setInterval(function(){ if(leggi(K.CODA, []).length) inviaCoda(false); }, 15000);
 
 /* ================= Dialoghi ================= */
 function dialogo(testo, bottoni, cb){
@@ -391,11 +416,11 @@ function home(){
   var coda = leggi(K.CODA, []);
   vista('<div class="sez"><h2>Nuovo carrello</h2>' +
     '<div class="grande-scelta">' +
-      '<button class="scelta ing" onclick="nuovoCarrello(\'Ingresso\')">⬇ INGRESSO<small>merce in arrivo</small></button>' +
-      '<button class="scelta usc" onclick="nuovoCarrello(\'Uscita\')">⬆ USCITA<small>es. a Caritas</small></button>' +
+      '<button class="scelta ing" onclick="nuovoCarrello(\'Ingresso\')">⬇ INGRESSO<small>ad es.: Esselunga, Gigante</small></button>' +
+      '<button class="scelta usc" onclick="nuovoCarrello(\'Uscita\')">⬆ USCITA<small>ad es.: CARITAS San Donato, CAV Milano</small></button>' +
     '</div>' +
     (coda.length ? '<div class="avviso ambra" style="margin-top:16px">'+coda.length+' carrello/i salvati sul telefono, in attesa di rete. Partono da soli.</div>' : '') +
-    '<p class="muto piccolo" style="margin-top:24px">L\'app funziona anche senza rete: i carrelli partono da soli quando torna la connessione. Consiglio: aggiungila alla schermata Home (menu del browser → <i>Aggiungi a schermata Home</i>).</p>' +
+    '<p class="muto piccolo" style="margin-top:24px">L\'app funziona anche senza rete: i carrelli partono da soli quando torna la connessione.</p>' +
     '<div style="text-align:center"><button class="link" onclick="aggiornaConfig(leggi(K.PIN,\'\'), false).then(function(ok){ if(ok) dialogo(\'Liste aggiornate.\', [\'Ok\']); })">Aggiorna liste dal foglio</button></div>' +
   '</div>');
 }
@@ -416,7 +441,7 @@ function impostaCarrello(c){
     '<label class="etich" style="margin-top:0">'+titolo+'</label><div class="lista-opz" id="lstLuogo">' +
     lista.map(function(l){ return '<button class="opz'+(c.luogo===l?' sel':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join('') +
     '</div>' +
-    '<div id="boxAltro" class="'+(/^altro$/i.test(c.luogo)?'':'nascosto')+'"><label class="etich">Specifica</label><input id="inAltro" class="campo" value="'+esc(c.altro)+'" placeholder="Es. donazione scuola Rodari"></div>' +
+    '<div id="boxAltro" class="'+(/^altro$/i.test(c.luogo)?'':'nascosto')+'"><label class="etich">Specifica</label><input id="inAltro" class="campo" value="'+esc(c.altro)+'" placeholder="'+(c.tipo==='Uscita'?'Es. Parrocchia San Martino':'Es. donazione scuola Rodari')+'"></div>' +
     '<label class="etich">Data</label><input id="inData" class="campo" type="date" value="'+esc(c.data)+'">' +
     '<label class="etich">Operatore</label><select id="inOp" class="campo">' +
       nomi.map(function(n){ return '<option'+(n===c.operatore?' selected':'')+'>'+esc(n)+'</option>'; }).join('') +
@@ -459,6 +484,18 @@ function impostaCarrello(c){
   };
 }
 
+/* Una destinazione scritta a mano entra subito nella lista del telefono (prima di "Altro");
+   lo script la aggiunge al foglio quando riceve il carrello. */
+function ricordaDestinazione(testo){
+  var t = String(testo).replace(/\s+/g,' ').trim(); if(!t) return;
+  t = t.charAt(0).toUpperCase() + t.slice(1);
+  var lista = stato.cfg.destinazioni || [];
+  var k = function(x){ return norm(x).replace(/[^a-z0-9]/g,''); };
+  if(lista.some(function(x){ return k(x) === k(t); })) return;
+  var i = lista.findIndex(function(x){ return /^altro$/i.test(x); });
+  if(i < 0) lista.push(t); else lista.splice(i, 0, t);
+  stato.cfg.destinazioni = lista; scrivi(K.CFG, stato.cfg);
+}
 function luogoTxt(c){ return /^altro$/i.test(c.luogo) && c.altro ? c.altro : c.luogo; }
 function totaleCarrello(c){ var t = 0; Object.keys(c.righe).forEach(function(k){ t += somma(c.righe[k]); }); return t; }
 function salvaCarrello(){ scrivi(K.CARRELLO, stato.carrello); }
@@ -472,7 +509,7 @@ function mostraCarrello(){
       '<div><span class="tag '+(usc?'usc':'ing')+'">'+c.tipo.toUpperCase()+'</span>' +
       '<div style="font-weight:700;margin-top:6px">'+esc(luogoTxt(c))+'</div>' +
       '<div class="muto piccolo">'+dataTxt(c.data)+' · '+esc(c.operatore)+' · <button class="link" style="padding:0" onclick="impostaCarrello(stato.carrello)">modifica</button></div></div>' +
-      '<div style="text-align:right"><div class="totale" id="totCar">'+kgTxt(totaleCarrello(c))+' <small>kg</small></div>' +
+      '<div style="text-align:right"><div class="totale" id="totCar">'+totaliTxt(c, true)+'</div>' +
       '<div class="muto piccolo" id="nCat">'+contaCat(c)+'</div></div>' +
     '</div></div></div>' +
     '<div class="cerca-wrap"><input id="inCerca" class="cerca" type="search" placeholder="Cerca: tonno, nutella, ceci…" value="'+esc(stato.cerca)+'" autocomplete="off"></div>' +
@@ -505,7 +542,7 @@ function disegnaCategorie(){
   var riga = function(cat){
     var t = somma(c.righe[cat.id]);
     return '<button class="cat'+(t>0?' usata':'')+'" data-id="'+esc(cat.id)+'"><img src="'+icona(cat.id)+'" alt=""><span class="nome">'+esc(cat.nome)+'</span>' +
-      (t>0 ? '<span class="kg">'+kgTxt(t)+' kg</span>' : '<span class="muto" style="font-size:22px">+</span>') + '</button>';
+      (t>0 ? '<span class="kg">'+qTxt(t, cat.unita)+'</span>' : '<span class="muto" style="font-size:22px">+</span>') + '</button>';
   };
   var html = '';
   if(usate.length) html += '<div class="sep">Già nel carrello</div>' + usate.map(riga).join('');
@@ -515,7 +552,7 @@ function disegnaCategorie(){
   var el = document.getElementById('lstCat');
   el.innerHTML = html;
   el.querySelectorAll('.cat').forEach(function(b){ b.onclick = function(){ apriCategoria(b.getAttribute('data-id')); }; });
-  var tot = document.getElementById('totCar'); if(tot) tot.innerHTML = kgTxt(totaleCarrello(c)) + ' <small>kg</small>';
+  var tot = document.getElementById('totCar'); if(tot) tot.innerHTML = totaliTxt(c, true);
   var nc = document.getElementById('nCat'); if(nc) nc.textContent = contaCat(c);
 }
 
@@ -526,13 +563,19 @@ function trovaCat(id){
 }
 
 /* ------- foglio di inserimento pesata ------- */
+var TESTI_UNITA = {
+  kg: { ph:'0,0', mode:'decimal', vuoto:'Nessuna pesata. Scrivi i kg letti sulla bilancia.', tit:'Pesate' },
+  l:  { ph:'0,0', mode:'decimal', vuoto:'Nessuna quantità. Scrivi i litri (es. 6 bottiglie da 1 l → 6; 4 da 0,5 l → 2).', tit:'Inserimenti' },
+  pz: { ph:'0',   mode:'numeric', vuoto:'Nessuna quantità. Scrivi il numero di pezzi.', tit:'Inserimenti' }
+};
 function apriCategoria(id){
   var cat = trovaCat(id);
+  var u = unitaDi(id), TU = TESTI_UNITA[u];
   var s = document.getElementById('strato');
   s.innerHTML = '<div class="velo" id="velo"><div class="foglio">' +
     '<div class="foglio-testa"><img src="'+icona(id)+'" alt=""><div class="t">'+esc(cat.nome)+'</div><button class="x" id="xChiudi" aria-label="Chiudi">✕</button></div>' +
     '<div id="pesateBox"></div>' +
-    '<div class="ins-kg"><input id="inKg" type="text" inputmode="decimal" placeholder="0,0" autocomplete="off"><span class="unit">kg</span>' +
+    '<div class="ins-kg"><input id="inKg" type="text" inputmode="'+TU.mode+'" placeholder="'+TU.ph+'" autocomplete="off"><span class="unit">'+u+'</span>' +
     '<button class="btn verde" id="btnAgg">Aggiungi</button></div>' +
     '<div id="avvKg"></div>' +
     '<div style="height:10px"></div><button class="btn chiaro" id="btnFatto">Fatto</button>' +
@@ -545,9 +588,11 @@ function apriCategoria(id){
   var aggiungi = function(conferma){
     var v = Number(String(inp.value).replace(',', '.').trim());
     var avv = document.getElementById('avvKg');
-    if(!inp.value.trim() || !isFinite(v) || v <= 0){ avv.innerHTML = '<div class="avviso rosso">Scrivi un peso valido, es. 7,5</div>'; return; }
-    if(v > 40 && !conferma){
-      avv.innerHTML = '<div class="avviso ambra">'+kgTxt(v)+' kg è più della portata della bilancia (40 kg). È corretto?' +
+    if(!inp.value.trim() || !isFinite(v) || v <= 0){ avv.innerHTML = '<div class="avviso rosso">'+(u==='pz'?'Scrivi un numero di pezzi, es. 12':'Scrivi una quantità valida, es. 7,5')+'</div>'; return; }
+    if(u === 'pz' && Math.round(v) !== v){ avv.innerHTML = '<div class="avviso rosso">I pezzi devono essere un numero intero.</div>'; return; }
+    var limite = u === 'kg' ? 40 : (u === 'l' ? 100 : 300);
+    if(v > limite && !conferma){
+      avv.innerHTML = '<div class="avviso ambra">'+qTxt(v,u)+(u==='kg' ? ' è più della portata della bilancia (40 kg)' : ' sono tanti in un solo inserimento')+'. È corretto?' +
         '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn chiaro" style="padding:10px;font-size:14px" id="kgNo">Correggo</button><button class="btn" style="padding:10px;font-size:14px;margin:0" id="kgSi">Sì, aggiungi</button></div></div>';
       document.getElementById('kgNo').onclick = function(){ avv.innerHTML=''; inp.focus(); inp.select(); };
       document.getElementById('kgSi').onclick = function(){ aggiungi(true); };
@@ -559,7 +604,7 @@ function apriCategoria(id){
     c.ordine = c.ordine.filter(function(x){ return x !== id; }); c.ordine.push(id);
     salvaCarrello();
     inp.value = '';
-    avv.innerHTML = '<div class="avviso verde">+ '+kgTxt(v)+' kg aggiunti</div>';
+    avv.innerHTML = '<div class="avviso verde">+ '+qTxt(v,u)+' aggiunti</div>';
     disegnaPesate(id);
     inp.focus();
   };
@@ -572,15 +617,16 @@ function apriCategoria(id){
 
 function disegnaPesate(id){
   var p = stato.carrello.righe[id] || [];
+  var u = unitaDi(id), TU = TESTI_UNITA[u];
   var box = document.getElementById('pesateBox');
-  if(!p.length){ box.innerHTML = '<p class="muto piccolo" style="margin:4px 0 12px">Nessuna pesata. Scrivi i kg letti sulla bilancia.</p>'; return; }
-  box.innerHTML = '<div class="muto piccolo">Pesate: totale <b style="color:var(--inchiostro)">'+kgTxt(somma(p))+' kg</b></div><div class="pesate">' +
-    p.map(function(v,i){ return '<span class="pesata">'+kgTxt(v)+' kg<button data-i="'+i+'" aria-label="Elimina">✕</button></span>'; }).join('') + '</div>';
+  if(!p.length){ box.innerHTML = '<p class="muto piccolo" style="margin:4px 0 12px">'+TU.vuoto+'</p>'; return; }
+  box.innerHTML = '<div class="muto piccolo">'+TU.tit+': totale <b style="color:var(--inchiostro)">'+qTxt(somma(p),u)+'</b></div><div class="pesate">' +
+    p.map(function(v,i){ return '<span class="pesata">'+qTxt(v,u)+'<button data-i="'+i+'" aria-label="Elimina">✕</button></span>'; }).join('') + '</div>';
   box.querySelectorAll('button[data-i]').forEach(function(b){
     b.onclick = function(){
       var i = Number(b.getAttribute('data-i'));
       var v = p[i];
-      dialogo('Eliminare la pesata da <b>'+kgTxt(v)+' kg</b>?', ['No', 'Elimina'], function(scelta){
+      dialogo('Eliminare l\'inserimento da <b>'+qTxt(v,u)+'</b>?', ['No', 'Elimina'], function(scelta){
         if(scelta !== 1) return;
         p.splice(i,1);
         if(!p.length) delete stato.carrello.righe[id];
@@ -594,7 +640,7 @@ function disegnaPesate(id){
 function annullaCarrello(){
   var c = stato.carrello;
   var t = totaleCarrello(c);
-  var msg = t > 0 ? 'Annullare il carrello? Le pesate inserite (<b>'+kgTxt(t)+' kg</b>) verranno perse.' : 'Annullare il carrello?';
+  var msg = t > 0 ? 'Annullare il carrello? Le quantità inserite (<b>'+totaliTxt(c)+'</b>) verranno perse.' : 'Annullare il carrello?';
   dialogo(msg, ['No', 'Sì, annulla'], function(s){
     if(s !== 1) return;
     stato.carrello = null; scrivi(K.CARRELLO, null); home();
@@ -616,9 +662,9 @@ function riepilogo(){
     piene.map(function(id){
       var p = c.righe[id];
       return '<div class="riep-riga"><img src="'+icona(id)+'" alt=""><span class="n">'+esc(trovaCat(id).nome) +
-        (p.length > 1 ? '<span class="d">'+p.map(kgTxt).join(' + ')+'</span>' : '') + '</span><span class="k">'+kgTxt(somma(p))+' kg</span></div>';
+        (p.length > 1 ? '<span class="d">'+p.map(kgTxt).join(' + ')+'</span>' : '') + '</span><span class="k">'+qTxt(somma(p), unitaDi(id))+'</span></div>';
     }).join('') +
-    '</div><div class="riep-riga" style="border-top:2px solid var(--inchiostro);margin-top:4px"><span class="n"><b>TOTALE</b></span><span class="k" style="font-size:20px">'+kgTxt(totaleCarrello(c))+' kg</span></div>' +
+    '</div><div class="riep-riga" style="border-top:2px solid var(--inchiostro);margin-top:4px"><span class="n"><b>TOTALE</b></span><span class="k" style="font-size:18px;text-align:right">'+totaliTxt(c).split(' · ').join('<br>')+'</span></div>' +
     '<label class="etich">Note (facoltative)</label><textarea id="inNote" class="campo" rows="2" placeholder="Es. compilato da foglio cartaceo">'+esc(c.note)+'</textarea>' +
   '</div></div>' +
   '<div class="barra-fondo"><div class="dentro">' +
@@ -631,8 +677,9 @@ function salvaNote(){ var n = document.getElementById('inNote'); if(n){ stato.ca
 function confermaInvio(){
   salvaNote();
   var c = stato.carrello;
+  if(c.tipo === 'Uscita' && /^altro$/i.test(c.luogo) && c.altro) ricordaDestinazione(c.altro);
   var invio = {
-    id:c.id, tipo:c.tipo, luogo:luogoTxt(c), operatore:c.operatore, data:c.data, note:c.note,
+    id:c.id, tipo:c.tipo, luogo:luogoTxt(c), nuovoLuogo:/^altro$/i.test(c.luogo), operatore:c.operatore, data:c.data, note:c.note,
     righe: Object.keys(c.righe).filter(function(k){ return somma(c.righe[k]) > 0; }).map(function(k){ return { cat:k, pesate:c.righe[k] }; })
   };
   var coda = leggi(K.CODA, []).filter(function(x){ return x.id !== invio.id; });
