@@ -1,6 +1,6 @@
 /* Tiene la pagina sul telefono per aprirla anche senza rete.
    I dati dei carrelli NON passano da qui: vanno direttamente allo script Google. */
-var CACHE = 'magazzino-v2';
+var CACHE = 'magazzino-v4';
 var FILE = ['./', 'index.html', 'config.js', 'icone.js', 'manifest.webmanifest', 'icona-192.png', 'icona-512.png'];
 
 self.addEventListener('install', function (e) {

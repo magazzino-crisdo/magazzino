@@ -82,7 +82,7 @@
   .cat{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#fff;border:1px solid var(--bordo);border-radius:12px;padding:8px 12px}
   .cat img{width:46px;height:46px;flex:none;object-fit:contain}
   .cat .nome{flex:1;font-size:15px;line-height:1.25}
-  .cat .kg{flex:none;font-weight:800;font-size:15px;background:var(--verde-bg);color:var(--verde);padding:5px 10px;border-radius:20px}
+  .cat .qta{flex:none;font-weight:800;font-size:15px;background:var(--verde-bg);color:var(--verde);padding:5px 10px;border-radius:20px}
   .cat.usata{border-color:#b9dcc6}
   .sep{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muto);margin:10px 4px 2px}
   .vuoto{text-align:center;color:var(--muto);padding:24px 10px;font-size:14px}
@@ -100,10 +100,10 @@
   .pesate{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
   .pesata{display:inline-flex;align-items:center;gap:6px;background:#f1efea;border-radius:20px;padding:6px 6px 6px 12px;font-weight:700}
   .pesata button{border:0;background:#fff;border-radius:50%;width:26px;height:26px;font-size:14px;color:var(--rosso)}
-  .ins-kg{display:flex;gap:10px;align-items:stretch}
-  .ins-kg input{flex:1;font-size:28px;font-weight:800;text-align:center;padding:12px;border:2px solid var(--inchiostro);border-radius:12px;min-width:0}
-  .ins-kg .unit{align-self:center;font-weight:800;color:var(--muto)}
-  .ins-kg button{flex:none;width:auto;padding:0 22px}
+  .ins-qta{display:flex;gap:10px;align-items:stretch}
+  .ins-qta input{flex:1;font-size:28px;font-weight:800;text-align:center;padding:12px;border:2px solid var(--inchiostro);border-radius:12px;min-width:0}
+  .ins-qta .unit{align-self:center;font-weight:800;color:var(--muto)}
+  .ins-qta button{flex:none;width:auto;padding:0 22px}
   .avviso{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:14px;font-weight:600}
   .avviso.ambra{background:var(--ambra-bg);color:var(--ambra)}
   .avviso.verde{background:var(--verde-bg);color:var(--verde)}
@@ -154,15 +154,17 @@ function leggi(k, def){ try{ var v = localStorage.getItem(k); return v === null 
 function scrivi(k, v){ try{ if(v === null || v === undefined) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 
 function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
-function kgTxt(n){ return (Math.round(n*100)/100).toLocaleString('it-IT', {maximumFractionDigits:2}); }
+function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function chiave(s){ return norm(s).replace(/[^a-z0-9]/g,''); }
+function eAltro(s){ return /^altro$/i.test(String(s||'').trim()); }
+function numTxt(n){ return (Math.round(n*100)/100).toLocaleString('it-IT', {maximumFractionDigits:2}); }
 function oggi(){ var d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function dataTxt(s){ var p = String(s).split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : s; }
 function nuovoId(){ return 'C' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,6).toUpperCase(); }
 function icona(id){ return (window.ICONE && (ICONE[id] || ICONE.fuori_lista)) || ''; }
 /* Unità di misura per categoria (dal foglio): kg pesati, l litri, pz pezzi */
 function unitaDi(id){ var c = trovaCat(id); return (c && c.unita) || 'kg'; }
-function qTxt(n, u){ return kgTxt(n) + ' ' + (u || 'kg'); }
+function qTxt(n, u){ return numTxt(n) + ' ' + (u || 'kg'); }
 /* Totali del carrello separati per unità, es. "12,5 kg · 6 l · 4 pz" */
 function totaliPerUnita(c){
   var t = { kg:0, l:0, pz:0 };
@@ -171,36 +173,31 @@ function totaliPerUnita(c){
 }
 function totaliTxt(c, html){
   var t = totaliPerUnita(c), parti = [];
-  ['kg','l','pz'].forEach(function(u){ if(t[u] > 0 || (u === 'kg' && !t.l && !t.pz)) parti.push(html ? kgTxt(t[u]) + ' <small>' + u + '</small>' : qTxt(t[u], u)); });
+  ['kg','l','pz'].forEach(function(u){ if(t[u] > 0 || (u === 'kg' && !t.l && !t.pz)) parti.push(html ? numTxt(t[u]) + ' <small>' + u + '</small>' : qTxt(t[u], u)); });
   return parti.join(html ? '<br>' : ' · ');
 }
 function somma(arr){ return (arr||[]).reduce(function(s,n){ return s + Number(n||0); }, 0); }
 
-/* ================= Chiamate al server ================= */
-/* La pagina parla con lo script Google (config.js → API_URL) senza nessun login. */
+/* ================= Chiamate allo script Google ================= */
+/* Nessun login: la pagina invia i dati all'indirizzo in config.js insieme al PIN.
+   Content-Type text/plain evita il controllo preliminare del browser, che lo script Google non gestisce. */
 function chiama(dati){
-  if(!window.CONFIG || !/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(CONFIG.API_URL || '')){
-    return Promise.reject(new Error('Indirizzo dello script mancante in config.js'));
-  }
-  var ctrl = ('AbortController' in window) ? new AbortController() : null;
-  var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 25000);
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){ ctrl.abort(); }, 25000);
   return fetch(CONFIG.API_URL, {
-    method:'POST', redirect:'follow', credentials:'omit', cache:'no-store',
+    method:'POST', credentials:'omit', cache:'no-store',
     headers:{ 'Content-Type':'text/plain;charset=utf-8' },
-    body: JSON.stringify(dati), signal: ctrl ? ctrl.signal : undefined
+    body: JSON.stringify(dati), signal: ctrl.signal
   }).then(function(r){
-    clearTimeout(timer);
     if(!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
-  }, function(e){ clearTimeout(timer); throw e; });
+  }).finally(function(){ clearTimeout(timer); });
 }
-function server(nome){
-  var a = Array.prototype.slice.call(arguments, 1);
-  if(nome === 'getConfig') return chiama({ azione:'config', pin:a[0] });
-  if(nome === 'inviaCarrello') return chiama({ azione:'invia', pin:a[0], carrello:a[1] });
-  if(nome === 'aggiungiVolontario') return chiama({ azione:'volontario', pin:a[0], nome:a[1] });
-  return Promise.reject(new Error('azione sconosciuta'));
-}
+var api = {
+  config:     function(pin){ return chiama({ azione:'config', pin:pin }); },
+  invia:      function(pin, carrello){ return chiama({ azione:'invia', pin:pin, carrello:carrello }); },
+  volontario: function(pin, nome){ return chiama({ azione:'volontario', pin:pin, nome:nome }); }
+};
 
 /* ================= Rete e coda di invio ================= */
 function aggiornaStato(){
@@ -225,7 +222,7 @@ function inviaCoda(manuale){
   stato.invioInCorso = true; aggiornaStato();
   var pin = leggi(K.PIN, '');
   var c = coda[0];
-  return server('inviaCarrello', pin, c).then(function(res){
+  return api.invia(pin, c).then(function(res){
     stato.invioInCorso = false;
     if(res && res.ok){
       var resto = leggi(K.CODA, []).filter(function(x){ return x.id !== c.id; });
@@ -296,7 +293,7 @@ function avvia(){
 }
 
 function aggiornaConfig(pin, bloccante){
-  return server('getConfig', pin).then(function(res){
+  return api.config(pin).then(function(res){
     if(res && res.ok){
       scrivi(K.PIN, pin); scrivi(K.CFG, res); stato.cfg = res;
       if(bloccante) dopoConfig(); else aggiornaStato();
@@ -342,7 +339,7 @@ function confermaPin(){
   var v = document.getElementById('inPin').value.trim();
   if(!v) return;
   var b = document.getElementById('btnPin'); b.disabled = true; b.textContent = 'Verifico…';
-  server('getConfig', v).then(function(res){
+  api.config(v).then(function(res){
     if(res && res.ok){
       scrivi(K.PIN, v); scrivi(K.CFG, res); stato.cfg = res;
       dopoConfig(); inviaCoda(false);
@@ -356,18 +353,17 @@ function nomeProprio(s){
   var t = String(s||'').replace(/[^A-Za-zÀ-ÖØ-öø-ÿ\s'’.\-]/g, ' ').replace(/^[^A-Za-zÀ-ÖØ-öø-ÿ]+/, '').replace(/\s+/g, ' ').trim().slice(0, 60);
   return t.toLowerCase().replace(/(^|[\s'’\-])(\S)/g, function(m, a, b){ return a + b.toUpperCase(); });
 }
-function chiaveNome(s){ return norm(s).replace(/[^a-z]/g, ''); }
 
 /* Usa un nome scritto a mano: se esiste già prende quello, altrimenti lo aggiunge (anche al foglio). */
 function registraNome(scritto){
   var n = nomeProprio(scritto);
-  if(chiaveNome(n).length < 2) return '';
+  if(chiave(n).length < 2) return '';
   var lista = (stato.cfg.volontari || []);
-  for(var i=0;i<lista.length;i++) if(chiaveNome(lista[i]) === chiaveNome(n)) return lista[i];
+  for(var i=0;i<lista.length;i++) if(chiave(lista[i]) === chiave(n)) return lista[i];
   lista.push(n); lista.sort(function(a,b){ return a.localeCompare(b,'it'); });
   stato.cfg.volontari = lista; scrivi(K.CFG, stato.cfg);
-  // Se c'è rete lo aggiunge subito al foglio; altrimenti verrà aggiunto con il primo carrello inviato.
-  server('aggiungiVolontario', leggi(K.PIN,''), n).then(function(res){
+  // Con la rete lo aggiunge subito al foglio, altrimenti arriva insieme al primo carrello inviato.
+  api.volontario(leggi(K.PIN,''), n).then(function(res){
     if(res && res.ok && res.volontari){ stato.cfg.volontari = res.volontari; scrivi(K.CFG, stato.cfg); }
   }).catch(function(){});
   return n;
@@ -416,13 +412,17 @@ function home(){
   var coda = leggi(K.CODA, []);
   vista('<div class="sez"><h2>Nuovo carrello</h2>' +
     '<div class="grande-scelta">' +
-      '<button class="scelta ing" onclick="nuovoCarrello(\'Ingresso\')">⬇ INGRESSO<small>ad es.: Esselunga, Gigante</small></button>' +
-      '<button class="scelta usc" onclick="nuovoCarrello(\'Uscita\')">⬆ USCITA<small>ad es.: CARITAS San Donato, CAV Milano</small></button>' +
+      '<button class="scelta ing" onclick="nuovoCarrello(\'Ingresso\')">⬇ INGRESSO<small>Registra la merce che entra in magazzino</small></button>' +
+      '<button class="scelta usc" onclick="nuovoCarrello(\'Uscita\')">⬆ USCITA<small>Registra la merce che esce dal magazzino</small></button>' +
     '</div>' +
-    (coda.length ? '<div class="avviso ambra" style="margin-top:16px">'+coda.length+' carrello/i salvati sul telefono, in attesa di rete. Partono da soli.</div>' : '') +
+    (coda.length ? '<div class="avviso ambra" style="margin-top:16px">'+(coda.length === 1 ? '1 carrello salvato' : coda.length + ' carrelli salvati')+' sul telefono, in attesa di rete. Partono da soli.</div>' : '') +
     '<p class="muto piccolo" style="margin-top:24px">L\'app funziona anche senza rete: i carrelli partono da soli quando torna la connessione.</p>' +
-    '<div style="text-align:center"><button class="link" onclick="aggiornaConfig(leggi(K.PIN,\'\'), false).then(function(ok){ if(ok) dialogo(\'Liste aggiornate.\', [\'Ok\']); })">Aggiorna liste dal foglio</button></div>' +
+    '<div style="text-align:center"><button class="link" onclick="aggiornaListe()">Aggiorna liste dal foglio</button></div>' +
   '</div>');
+}
+
+function aggiornaListe(){
+  aggiornaConfig(leggi(K.PIN, ''), false).then(function(ok){ if(ok) dialogo('Liste aggiornate.', ['Ok']); });
 }
 
 /* ================= Apertura carrello ================= */
@@ -441,7 +441,7 @@ function impostaCarrello(c){
     '<label class="etich" style="margin-top:0">'+titolo+'</label><div class="lista-opz" id="lstLuogo">' +
     lista.map(function(l){ return '<button class="opz'+(c.luogo===l?' sel':'')+'" data-l="'+esc(l)+'">'+esc(l)+'</button>'; }).join('') +
     '</div>' +
-    '<div id="boxAltro" class="'+(/^altro$/i.test(c.luogo)?'':'nascosto')+'"><label class="etich">Specifica</label><input id="inAltro" class="campo" value="'+esc(c.altro)+'" placeholder="'+(c.tipo==='Uscita'?'Es. Parrocchia San Martino':'Es. donazione scuola Rodari')+'"></div>' +
+    '<div id="boxAltro" class="'+(eAltro(c.luogo)?'':'nascosto')+'"><label class="etich">Specifica</label><input id="inAltro" class="campo" value="'+esc(c.altro)+'" placeholder="'+(c.tipo==='Uscita'?'Es. Parrocchia San Martino':'Es. donazione scuola Rodari')+'"></div>' +
     '<label class="etich">Data</label><input id="inData" class="campo" type="date" value="'+esc(c.data)+'">' +
     '<label class="etich">Operatore</label><select id="inOp" class="campo">' +
       nomi.map(function(n){ return '<option'+(n===c.operatore?' selected':'')+'>'+esc(n)+'</option>'; }).join('') +
@@ -455,7 +455,7 @@ function impostaCarrello(c){
     b.onclick = function(){
       document.querySelectorAll('#lstLuogo .opz').forEach(function(x){ x.classList.remove('sel'); });
       b.classList.add('sel'); c.luogo = b.getAttribute('data-l');
-      document.getElementById('boxAltro').classList.toggle('nascosto', !/^altro$/i.test(c.luogo));
+      document.getElementById('boxAltro').classList.toggle('nascosto', !eAltro(c.luogo));
       document.getElementById('errApri').innerHTML = '';
     };
   });
@@ -468,17 +468,17 @@ function impostaCarrello(c){
   document.getElementById('btnApri').onclick = function(){
     c.altro = document.getElementById('inAltro').value.trim();
     c.data = document.getElementById('inData').value || oggi();
+    var mostraErrore = function(msg){ document.getElementById('errApri').innerHTML = '<div class="avviso rosso">'+esc(msg)+'</div>'; };
+    if(!c.luogo) return mostraErrore('Scegli la ' + titolo.toLowerCase() + '.');
+    if(eAltro(c.luogo) && !c.altro) return mostraErrore('Scrivi da dove arriva o dove va la merce.');
     var op = document.getElementById('inOp').value;
-    var err = '';
     if(op === '__altro'){
       var scritto = document.getElementById('inOpAltro').value;
-      if(scritto.trim().split(/\s+/).length < 2) err = 'Scrivi nome e cognome del volontario.';
-      else { op = registraNome(scritto); if(!op) err = 'Nome del volontario non valido.'; }
+      if(scritto.trim().split(/\s+/).length < 2) return mostraErrore('Scrivi nome e cognome del volontario.');
+      op = registraNome(scritto);
+      if(!op) return mostraErrore('Nome del volontario non valido.');
     }
-    if(!err) c.operatore = op;
-    if(err){} else if(!c.luogo) err = 'Scegli la ' + titolo.toLowerCase() + '.';
-    else if(/^altro$/i.test(c.luogo) && !c.altro) err = 'Scrivi da dove arriva o dove va la merce.';
-    if(err){ document.getElementById('errApri').innerHTML = '<div class="avviso rosso">'+esc(err)+'</div>'; return; }
+    c.operatore = op;
     stato.carrello = c; scrivi(K.CARRELLO, c); stato.cerca = '';
     mostraCarrello();
   };
@@ -490,14 +490,12 @@ function ricordaDestinazione(testo){
   var t = String(testo).replace(/\s+/g,' ').trim(); if(!t) return;
   t = t.charAt(0).toUpperCase() + t.slice(1);
   var lista = stato.cfg.destinazioni || [];
-  var k = function(x){ return norm(x).replace(/[^a-z0-9]/g,''); };
-  if(lista.some(function(x){ return k(x) === k(t); })) return;
-  var i = lista.findIndex(function(x){ return /^altro$/i.test(x); });
+  if(lista.some(function(x){ return chiave(x) === chiave(t); })) return;
+  var i = lista.findIndex(eAltro);
   if(i < 0) lista.push(t); else lista.splice(i, 0, t);
   stato.cfg.destinazioni = lista; scrivi(K.CFG, stato.cfg);
 }
-function luogoTxt(c){ return /^altro$/i.test(c.luogo) && c.altro ? c.altro : c.luogo; }
-function totaleCarrello(c){ var t = 0; Object.keys(c.righe).forEach(function(k){ t += somma(c.righe[k]); }); return t; }
+function luogoTxt(c){ return eAltro(c.luogo) && c.altro ? c.altro : c.luogo; }
 function salvaCarrello(){ scrivi(K.CARRELLO, stato.carrello); }
 
 /* ================= Carrello ================= */
@@ -542,7 +540,7 @@ function disegnaCategorie(){
   var riga = function(cat){
     var t = somma(c.righe[cat.id]);
     return '<button class="cat'+(t>0?' usata':'')+'" data-id="'+esc(cat.id)+'"><img src="'+icona(cat.id)+'" alt=""><span class="nome">'+esc(cat.nome)+'</span>' +
-      (t>0 ? '<span class="kg">'+qTxt(t, cat.unita)+'</span>' : '<span class="muto" style="font-size:22px">+</span>') + '</button>';
+      (t>0 ? '<span class="qta">'+qTxt(t, cat.unita)+'</span>' : '<span class="muto" style="font-size:22px">+</span>') + '</button>';
   };
   var html = '';
   if(usate.length) html += '<div class="sep">Già nel carrello</div>' + usate.map(riga).join('');
@@ -575,27 +573,27 @@ function apriCategoria(id){
   s.innerHTML = '<div class="velo" id="velo"><div class="foglio">' +
     '<div class="foglio-testa"><img src="'+icona(id)+'" alt=""><div class="t">'+esc(cat.nome)+'</div><button class="x" id="xChiudi" aria-label="Chiudi">✕</button></div>' +
     '<div id="pesateBox"></div>' +
-    '<div class="ins-kg"><input id="inKg" type="text" inputmode="'+TU.mode+'" placeholder="'+TU.ph+'" autocomplete="off"><span class="unit">'+u+'</span>' +
+    '<div class="ins-qta"><input id="inQta" type="text" inputmode="'+TU.mode+'" placeholder="'+TU.ph+'" autocomplete="off"><span class="unit">'+u+'</span>' +
     '<button class="btn verde" id="btnAgg">Aggiungi</button></div>' +
-    '<div id="avvKg"></div>' +
+    '<div id="avvQta"></div>' +
     '<div style="height:10px"></div><button class="btn chiaro" id="btnFatto">Fatto</button>' +
   '</div></div>';
   var chiudi = function(){ s.innerHTML = ''; disegnaCategorie(); };
   document.getElementById('xChiudi').onclick = chiudi;
   document.getElementById('btnFatto').onclick = chiudi;
   document.getElementById('velo').addEventListener('click', function(e){ if(e.target.id === 'velo') chiudi(); });
-  var inp = document.getElementById('inKg');
+  var inp = document.getElementById('inQta');
   var aggiungi = function(conferma){
     var v = Number(String(inp.value).replace(',', '.').trim());
-    var avv = document.getElementById('avvKg');
+    var avv = document.getElementById('avvQta');
     if(!inp.value.trim() || !isFinite(v) || v <= 0){ avv.innerHTML = '<div class="avviso rosso">'+(u==='pz'?'Scrivi un numero di pezzi, es. 12':'Scrivi una quantità valida, es. 7,5')+'</div>'; return; }
     if(u === 'pz' && Math.round(v) !== v){ avv.innerHTML = '<div class="avviso rosso">I pezzi devono essere un numero intero.</div>'; return; }
     var limite = u === 'kg' ? 40 : (u === 'l' ? 100 : 300);
     if(v > limite && !conferma){
       avv.innerHTML = '<div class="avviso ambra">'+qTxt(v,u)+(u==='kg' ? ' è più della portata della bilancia (40 kg)' : ' sono tanti in un solo inserimento')+'. È corretto?' +
-        '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn chiaro" style="padding:10px;font-size:14px" id="kgNo">Correggo</button><button class="btn" style="padding:10px;font-size:14px;margin:0" id="kgSi">Sì, aggiungi</button></div></div>';
-      document.getElementById('kgNo').onclick = function(){ avv.innerHTML=''; inp.focus(); inp.select(); };
-      document.getElementById('kgSi').onclick = function(){ aggiungi(true); };
+        '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn chiaro" style="padding:10px;font-size:14px" id="qtaNo">Correggo</button><button class="btn" style="padding:10px;font-size:14px;margin:0" id="qtaSi">Sì, aggiungi</button></div></div>';
+      document.getElementById('qtaNo').onclick = function(){ avv.innerHTML=''; inp.focus(); inp.select(); };
+      document.getElementById('qtaSi').onclick = function(){ aggiungi(true); };
       return;
     }
     var c = stato.carrello;
@@ -610,7 +608,7 @@ function apriCategoria(id){
   };
   document.getElementById('btnAgg').onclick = function(){ aggiungi(false); };
   inp.addEventListener('keydown', function(e){ if(e.key === 'Enter') aggiungi(false); });
-  inp.addEventListener('input', function(){ document.getElementById('avvKg').innerHTML = ''; });
+  inp.addEventListener('input', function(){ document.getElementById('avvQta').innerHTML = ''; });
   disegnaPesate(id);
   setTimeout(function(){ inp.focus(); }, 60);
 }
@@ -631,7 +629,7 @@ function disegnaPesate(id){
         p.splice(i,1);
         if(!p.length) delete stato.carrello.righe[id];
         salvaCarrello(); disegnaPesate(id);
-        document.getElementById('avvKg').innerHTML = '';
+        document.getElementById('avvQta').innerHTML = '';
       });
     };
   });
@@ -639,8 +637,8 @@ function disegnaPesate(id){
 
 function annullaCarrello(){
   var c = stato.carrello;
-  var t = totaleCarrello(c);
-  var msg = t > 0 ? 'Annullare il carrello? Le quantità inserite (<b>'+totaliTxt(c)+'</b>) verranno perse.' : 'Annullare il carrello?';
+  var pieno = Object.keys(c.righe).length > 0;
+  var msg = pieno ? 'Annullare il carrello? Le quantità inserite (<b>'+totaliTxt(c)+'</b>) verranno perse.' : 'Annullare il carrello?';
   dialogo(msg, ['No', 'Sì, annulla'], function(s){
     if(s !== 1) return;
     stato.carrello = null; scrivi(K.CARRELLO, null); home();
@@ -662,7 +660,7 @@ function riepilogo(){
     piene.map(function(id){
       var p = c.righe[id];
       return '<div class="riep-riga"><img src="'+icona(id)+'" alt=""><span class="n">'+esc(trovaCat(id).nome) +
-        (p.length > 1 ? '<span class="d">'+p.map(kgTxt).join(' + ')+'</span>' : '') + '</span><span class="k">'+qTxt(somma(p), unitaDi(id))+'</span></div>';
+        (p.length > 1 ? '<span class="d">'+p.map(numTxt).join(' + ')+'</span>' : '') + '</span><span class="k">'+qTxt(somma(p), unitaDi(id))+'</span></div>';
     }).join('') +
     '</div><div class="riep-riga" style="border-top:2px solid var(--inchiostro);margin-top:4px"><span class="n"><b>TOTALE</b></span><span class="k" style="font-size:18px;text-align:right">'+totaliTxt(c).split(' · ').join('<br>')+'</span></div>' +
     '<label class="etich">Note (facoltative)</label><textarea id="inNote" class="campo" rows="2" placeholder="Es. compilato da foglio cartaceo">'+esc(c.note)+'</textarea>' +
@@ -677,9 +675,9 @@ function salvaNote(){ var n = document.getElementById('inNote'); if(n){ stato.ca
 function confermaInvio(){
   salvaNote();
   var c = stato.carrello;
-  if(c.tipo === 'Uscita' && /^altro$/i.test(c.luogo) && c.altro) ricordaDestinazione(c.altro);
+  if(c.tipo === 'Uscita' && eAltro(c.luogo) && c.altro) ricordaDestinazione(c.altro);
   var invio = {
-    id:c.id, tipo:c.tipo, luogo:luogoTxt(c), nuovoLuogo:/^altro$/i.test(c.luogo), operatore:c.operatore, data:c.data, note:c.note,
+    id:c.id, tipo:c.tipo, luogo:luogoTxt(c), nuovoLuogo:eAltro(c.luogo), operatore:c.operatore, data:c.data, note:c.note,
     righe: Object.keys(c.righe).filter(function(k){ return somma(c.righe[k]) > 0; }).map(function(k){ return { cat:k, pesate:c.righe[k] }; })
   };
   var coda = leggi(K.CODA, []).filter(function(x){ return x.id !== invio.id; });
